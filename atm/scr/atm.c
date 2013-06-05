@@ -21,9 +21,6 @@ typedef struct {
 	int password;
 } tarjeta;
 
-void printfSiInteractivo() {
-
-}
 
 int conexion(char *ip, int port){
 	int fd;
@@ -91,6 +88,42 @@ char *hablar(char *ip, int port, char *operacion, char *datos1, char *datos2) {
 	return bufaux;
 }
 
+char* lastcharDel(char* aux){
+    int i = 0;
+    while(aux[i] != '\0'){
+    	i++;
+    }
+    aux[i-1] = '\0';
+    return aux;
+}
+
+void enBatch(char *batchFile, char *ip, int port) {
+	FILE *fp = fopen(batchFile, "r");
+	char tarj[22];
+	char oper[5];
+	char cant[10];
+
+	while (fscanf(fp, "%s %s %s", tarj, oper,cant) != EOF) {
+		strcpy(tarj,lastcharDel(tarj));
+		strcpy(oper,lastcharDel(oper));
+		strcpy(cant,lastcharDel(cant));
+		strcpy(cant,lastcharDel(cant));
+		printf("%s - %s - %s\n", tarj, oper,cant);
+
+		if (strcmp(oper,"CRE")==0){
+			hablar(ip, port, "depositar", tarj, cant);
+		}
+		if (strcmp(oper,"DEB")==0){
+			hablar(ip, port, "extraer", tarj, cant);
+		}
+		if (strcmp(oper,"SAL")==0){
+			hablar(ip, port, "consulta", tarj, cant);
+		}
+	}
+	fclose(fp);
+}
+
+
 int auntenticarAtm(char *ip, int port, atm user){
 	char buffer[10];
 	sprintf(buffer, "%d", user.user);
@@ -104,10 +137,8 @@ int deslogAtm(char *ip, int port, atm user){
 }
 
 int autenticarTarjeta(char *ip, int port, tarjeta user){
-	char *buffer;
-	char *buffer2;
-	buffer = (char*)malloc(strlen("") * sizeof(char));
-	buffer2 = (char*)malloc(strlen("") * sizeof(char));
+	char buffer[21];
+	char buffer2[9];
 	strcpy(buffer, user.number);
 	sprintf(buffer2, "%d", user.password);
 	return atoi(hablar(ip, port, "authtarj", buffer, buffer2));
@@ -115,10 +146,8 @@ int autenticarTarjeta(char *ip, int port, tarjeta user){
 
 int extraer(char *ip, int port, tarjeta user){
 	float aux=0;
-	char *buffer;
-	char *buffer2;
-	buffer = (char*)malloc(strlen("") * sizeof(char));
-	buffer2 = (char*)malloc(strlen("") * sizeof(char));
+	char buffer[21];
+	char buffer2[9];
 	printf("Cuanto desea extraer? (formato xxxx.xx)");
 	scanf("%f",&aux);
 	strcpy(buffer, user.number);
@@ -128,10 +157,8 @@ int extraer(char *ip, int port, tarjeta user){
 
 int depositar(char *ip, int port, tarjeta user){
 	float aux=0;
-	char *buffer;
-	char *buffer2;
-	buffer = (char*)malloc(strlen("") * sizeof(char));
-	buffer2 = (char*)malloc(strlen("") * sizeof(char));
+	char buffer[21];
+	char buffer2[9];
 	printf("Cuanto desea depositar? (formato xxxx.xx)");
 	scanf("%f",&aux);
 	strcpy(buffer, user.number);
@@ -141,10 +168,8 @@ int depositar(char *ip, int port, tarjeta user){
 
 float consulta(char *ip, int port, tarjeta user){
 	float aux=0;
-	char *buffer;
-	char *buffer2;
-	buffer = (char*)malloc(strlen("") * sizeof(char));
-	buffer2 = (char*)malloc(strlen("") * sizeof(char));
+	char buffer[21];
+	char buffer2[9];
 	strcpy(buffer, user.number);
 	sprintf(buffer2, "%.2f", aux);
 	return atof(hablar(ip, port, "consulta", buffer, buffer2));
@@ -177,21 +202,15 @@ int main( int argc, char *argv[] ){
 	int cerrar=0;
 	char c;
 	char opcion;
-	char* ip;
-	char* log;
-	char* batchFile;
-	char* buffer;
-	ip = (char*)malloc(strlen("") * sizeof(char));
-	log = (char*)malloc(strlen("") * sizeof(char));
-	batchFile = (char*)malloc(strlen("") * sizeof(char));
-	buffer = (char*)malloc(strlen("") * sizeof(char));
+	char ip[120];
+	char log[120];
+	char batchFile[120];
+	char buffer[21];
 	atm.user=0;
-	ip="localhost";
+	strcpy(ip,"localhost");
 	port=10000;
 	strcpy(atm.pass,"");
 	strcpy(log, "./atm-");
-
-
 
 	while ((c = getopt (argc, argv, "u:c:l:f:h:p:")) != -1) {
 	      switch (c) {
@@ -292,7 +311,7 @@ int main( int argc, char *argv[] ){
 			}
 		}
 		else {
-			printf("laburamos en batch\n");
+			enBatch(batchFile, ip, port);
 		}
 	}
 	return 0;
