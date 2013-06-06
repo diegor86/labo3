@@ -8,7 +8,7 @@
 #include <netdb.h>
 
 
-#define MAXDATASIZE 100
+#define MAXDATASIZE 1000
 
 
 typedef struct {
@@ -175,8 +175,12 @@ float consulta(char *ip, int port, tarjeta user){
 	return atof(hablar(ip, port, "consulta", buffer, buffer2));
 }
 
-void movimientos(char *ip, int port, tarjeta user){
-
+char* movimientos(char *ip, int port, tarjeta user){
+	char buffer[21];
+	char buffer2[9];
+	strcpy(buffer, user.number);
+	strcpy(buffer2, "");
+	return(hablar(ip, port, "listado", buffer, buffer2));
 }
 
 void meterEnLog(char *movimiento, char *log) {
@@ -263,6 +267,7 @@ int main( int argc, char *argv[] ){
 	};
 
 
+
 	if (auntenticarAtm(ip, port, atm)==1) {
 		if (interactivo==1) {
 			while (1) {
@@ -270,6 +275,11 @@ int main( int argc, char *argv[] ){
 				scanf("%s",usuario.number);
 				printf("Ingrese su contraseña\n");
 				scanf("%d",&usuario.password);
+				if ((strcmp(usuario.number,"0")==0) && (usuario.password==0)) {
+					if (deslogAtm(ip, port, atm)==1) {
+						break;
+					}
+				}
 				if (autenticarTarjeta(ip, port, usuario)==1) {
 					while (1) {
 						opcion='0';
@@ -291,7 +301,7 @@ int main( int argc, char *argv[] ){
 								printf("Saldo: %.2f\n", consulta(ip, port, usuario));
 								break;
 							case '4':
-								movimientos(ip, port, usuario);
+								printf("Ultimos Movimientos:\noper-cant-saldo\n%s\n",movimientos(ip, port, usuario));
 								break;
 							case '5':
 								cerrar=1;
@@ -299,13 +309,6 @@ int main( int argc, char *argv[] ){
 						}
 
 						if (cerrar==1) break;
-					}
-				}
-				else {
-					if ((strcmp(usuario.number,"0")==0) && (usuario.password==0)) {
-						if (deslogAtm(ip, port, atm)==1) {
-							break;
-						}
 					}
 				}
 			}
@@ -316,3 +319,11 @@ int main( int argc, char *argv[] ){
 	}
 	return 0;
 }
+
+
+
+
+
+
+
+

@@ -13,7 +13,7 @@
 
 #define PORT 10000
 #define BACKLOG 10 // El número de conexiones permitidas
-#define MAXDATASIZE 100
+#define MAXDATASIZE 1000
 
 typedef struct {
 	int fd;
@@ -92,16 +92,17 @@ int conexion(char *ip, int port){
 }
 
 
-char *enviarBanco(char *operacion, char *datos1, char *datos2) {
+ void enviarBanco(char *operacion, char *datos1, char *datos2, char *output) {
 	int numbytes;
 	char buf[MAXDATASIZE];
-	static char bufaux[MAXDATASIZE];
+	//static char bufaux[MAXDATASIZE];
+	char datos[5];
 	char ip[120];
 	int port=0;
 	int fd;
 
 	pthread_mutex_lock(&onlineBancoMutex);
-	scanf(getBankStringFromList(onlineBanco, datos1), "%s %s %d", datos1, ip, port);
+	sscanf(getBankStringFromList(onlineBanco, datos1), "%s %s %d", datos, ip, &port);
 	pthread_mutex_unlock(&onlineBancoMutex);
 	fd = conexion(ip, port);
 
@@ -132,9 +133,8 @@ char *enviarBanco(char *operacion, char *datos1, char *datos2) {
 
 	buf[numbytes]='\0';
 
-	strcpy(bufaux,buf);
+	strcpy(output,buf);
 	close(fd);
-	return bufaux;
 }
 
 
@@ -145,6 +145,8 @@ void *hablar(void *conexionAsPointer) {
 	char datos1[MAXDATASIZE];
 	char datos2[MAXDATASIZE];
 	char aux[100];
+	char aux2[100];
+	char aux3[1000];
 	char buffer[6];
 	Banco *conexion = (Banco *) conexionAsPointer;
 
@@ -176,7 +178,6 @@ void *hablar(void *conexionAsPointer) {
 	if (strcmp(operacion, "authatm") == 0) {
 		sprintf(aux, "%d", autorizarAtm(datos1, datos2));
 		send(conexion->fd, aux, 2, 0);
-		//onlineAtmMutex = locked;
 		if (strcmp(aux,"1")==0) {
 			pthread_mutex_lock(&onlineAtmMutex);
 			if (!isInList(onlineAtm,datos1)){
@@ -194,31 +195,28 @@ void *hablar(void *conexionAsPointer) {
 	};
 
 	if (strcmp(operacion, "authtarj") == 0) {
-		if (strcmp(datos1, "2222") == 0) {
-			if (strcmp(datos2, "2222") == 0) {
-				send(conexion->fd, "1", 2, 0);
-			} else
-				send(conexion->fd, "0", 2, 0);
-		} else
-			send(conexion->fd, "0", 2, 0);
+		enviarBanco(operacion, datos1, datos2, aux2);
+		send(conexion->fd, aux2, 5, 0);
 	};
 
 	if (strcmp(operacion, "extraer") == 0) {
-		strcpy(aux,enviarBanco(operacion, datos1, datos2));
-		send(conexion->fd, aux, 5, 0);
+		enviarBanco(operacion, datos1, datos2, aux2);
+		send(conexion->fd, aux2, 5, 0);
 	};
 
 	if (strcmp(operacion, "depositar") == 0) {
-		strcpy(aux,enviarBanco(operacion, datos1, datos2));
-		send(conexion->fd, aux, 5, 0);
+		enviarBanco(operacion, datos1, datos2, aux2);
+		send(conexion->fd, aux2, 5, 0);
 	};
 
 	if (strcmp(operacion, "consulta") == 0) {
-		//datos1 es el user
-		//datos2 es la plata (string-float)
-		//si puede depositar devolvemos 1
-		//funcion que sume al saldo
-		send(conexion->fd, "1234.56", 10, 0);
+		enviarBanco(operacion, datos1, datos2, aux2);
+		send(conexion->fd, aux2, 100, 0);
+	};
+
+	if (strcmp(operacion, "listado") == 0) {
+		enviarBanco(operacion, datos1, datos2, aux3);
+		send(conexion->fd, aux3, 1000, 0);
 	};
 
 	if (strcmp(operacion, "authbanco") == 0) {
@@ -324,22 +322,28 @@ void mostrarPantallaInicial() {
 }
 
 void listarAtm() {
-	FILE *fp;
-	fp = fopen("./atm.txt", "r");
-	char *user;
-	char *pass;
-	char *online;
-	user = (char*) malloc(strlen("") * sizeof(char));
-	pass = (char*) malloc(strlen("") * sizeof(char));
-	online = (char*) malloc(strlen("") * sizeof(char));
-	printf("ATMs Online:\n");
-	while (fscanf(fp, "%s %s %s", user, pass, online) != EOF) {
-		if (strcmp(online, "1") == 0) {
-			printf("%s\n", user);
-		}
+	Node *node = onlineAtm->first;
+	pthread_mutex_lock(&onlineAtmMutex);
+	while(node != NULL) {
+		printf("%s\n",node->data);
+		node = node->next;
 	}
-	fclose(fp);
-	printf("\n");
+	pthread_mutex_unlock(&onlineAtmMutex);
+}
+
+void listarBancos() {
+	char datos[5];
+	char ip[120];
+	int port=0;
+	Node *node = onlineBanco->first;
+
+	pthread_mutex_lock(&onlineBancoMutex);
+	while(node != NULL) {
+		sscanf(node->data, "%s %s %d", datos, ip, &port);
+		printf("%s\n",datos);
+		node = node->next;
+	}
+	pthread_mutex_unlock(&onlineBancoMutex);
 }
 
 void initMutexes() {
@@ -365,7 +369,7 @@ int main() {
 		scanf("%s", &opcion);
 		switch (opcion) {
 		case '1':
-			printf("Listar bancos conectados\n");
+			listarBancos();
 			break;
 		case '2':
 			listarAtm();
